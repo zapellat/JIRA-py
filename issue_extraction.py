@@ -9,14 +9,14 @@ from datetime import datetime, time
 from openpyxl.styles import NamedStyle
 from dotenv import load_dotenv
 
-# CARREGAR ARQUIVO ENV #
+# LOAD ENV #
 load_dotenv()
 
-#VARIAVEIS E CONFIGURAÇÕES GLOBAIS
+# VARIABLES AND GLOBAL CONFIG #
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 date_style = NamedStyle(name='date_style', number_format='DD/MM/YYYY')
 
-# CONFIGURAR JIRA API #
+# JIRA API CONFIG #
 JIRA_URL = os.getenv('JIRA_URL')
 JIRA_USERNAME = os.getenv('JIRA_USERNAME')
 JIRA_TOKEN = os.getenv('JIRA_TOKEN')
@@ -27,8 +27,8 @@ jira_api = Jira(
 )
 logging.info("JIRA API Configurada e Autenticada.")
 
-# PROCURANDO PROJETOS GRIDS #
-search_terms = ["ICT BR Delivery Area", "ICT - CR Grids BR", "ICT - Business Feature Enel Grids Brasil"]
+# SEARCHING PROJECTS #
+search_terms = ["ProjectName1", "ProjectName2"]
 all_projects = jira_api.projects()
 
 matching_projects = [
@@ -38,25 +38,24 @@ matching_projects = [
 ]
 
 if not matching_projects:
-    logging.warning(f"Nenhum projeto encontrado contendo {search_terms} no nome.")
+    logging.warning(f"Zero projects found using {search_terms}.")
 else:
-    logging.info(f"{len(matching_projects)} projetos encontrados.")
+    logging.info(f"{len(matching_projects)} projects found.")
 
 # CONSTRUINDO JQL #
-type_keys = ['TCR', 'ICR', 'Business Feature', 'Feature for APM', 'Feature Delivery', 'Specialized Support Task',
-             'Provider', 'RFC']
+type_keys = ['TypeKey1', 'TypeKey2', 'TypeKey3']
 quoted_types = [f'"{type_key}"' for type_key in type_keys]
 type_keys_str = ', '.join(quoted_types)
 jql_query = f'Project IN ({", ".join(matching_projects)}) AND Type IN ({type_keys_str})'
 
-logging.info(f"Executando Query: {jql_query}")
+logging.info(f"Running Query: {jql_query}")
 
 start_at_index = 0
 max_results_per_query = 150
 all_jira_issues = []
 
 
-# EXTRAIR ISSUES DO JIRA PELA QUERY JQL #
+# EXTRACT JIRA ISSUES #
 def fetch_issues(jql, start_at, max_results):
     while True:
         try:
@@ -65,16 +64,16 @@ def fetch_issues(jql, start_at, max_results):
                 break
             all_jira_issues.extend(issues['issues'])
             start_at += len(issues['issues'])
-            logging.info(f"Foram encontrados {len(issues['issues'])} itens.")
+            logging.info(f"Issue(s) found: {len(issues['issues'])}.")
         except HTTPError as err:
-            logging.error(f"Ocorreu um Erro HTTP: {err.response.status_code} - {err.response.text}")
+            logging.error(f"Error HTTP: {err.response.status_code} - {err.response.text}")
             break
         except Exception as e:
-            logging.error(f"Ocorreu um Erro: {str(e)}")
+            logging.error(f"Erros: {str(e)}")
             break
 
 
-# MAPEAR STATUS E EFETUAR O DE PARA #
+# STATUS MAPPING AND GROUPING NAMES (IN PT-BR) #
 def map_de_para_status(status):
     status_mapping = {
         'OPEN': 'NÃO INICIADA',
@@ -130,7 +129,7 @@ def map_de_para_status(status):
     return status_mapping.get(normalized_status, 'OUTRO')
 
 
-# EXTRAIR CAMPOS NECESSÁRIOS #
+# FIELDS #
 def process_issues(issues):
     processed_issues_list = []
     for issue in issues:
@@ -327,18 +326,18 @@ def process_issues(issues):
     return processed_issues_list
 
 
-# SALVAR ISSUES EM UM ARQUIVO EXCEL XLSX #
-def save_to_excel(issues, filename='Extração JIRA - SmartFlow.xlsx'):
+# SAVING EXCEL FILE #
+def save_to_excel(issues, filename='Issue_Extraction.xlsx'):
     wb = openpyxl.Workbook()
     default_sheet = wb.active
     wb.remove(default_sheet)
     issues = sorted(issues, key=lambda x: x['issue_key'])
 
     # Cria as abas
-    ws_jiras = wb.create_sheet(title="JIRA ICT GRIDS")
-    ws_cancelados = wb.create_sheet(title="CANCELADOS")
-    ws_implementados = wb.create_sheet(title="IMPLEMENTADOS")
-    ws_support_esp = wb.create_sheet(title="SUPPORT ESP")
+    ws_jiras = wb.create_sheet(title="ISSUESTAB1")
+    ws_cancelados = wb.create_sheet(title="ISSUESTAB2")
+    ws_implementados = wb.create_sheet(title="ISSUESTAB3")
+    ws_support_esp = wb.create_sheet(title="ISSUESTAB4")
 
     headers = ['ID', 'Projeto', 'Tipo', 'Sumário', 'Prioridade', 'Status JIRA', 'Status', 'Provider',
                'Assignee', 'Criado Em', 'Atualizado Em', 'Componentes', 'Labels', 'APM List']
@@ -373,7 +372,7 @@ def save_to_excel(issues, filename='Extração JIRA - SmartFlow.xlsx'):
                 current_sheet = ws_cancelados
                 row_index = cancelados_row_index
                 cancelados_row_index += 1
-            elif issue['issue_type'] == "Specialized Support Task":
+            elif issue['issue_type'] == "TYPE1":
                 current_sheet = ws_support_esp
                 row_index = support_esp_row_index
                 support_esp_row_index += 1
@@ -397,26 +396,26 @@ def save_to_excel(issues, filename='Extração JIRA - SmartFlow.xlsx'):
                     cell.value = item
 
     # Cria a aba Providers
-    ws_providers = wb.create_sheet(title="PROVIDERS")
+    ws_providers = wb.create_sheet(title="ISSUETAB5")
     headers_providers = ['ID', 'Projeto', 'Tipo', 'Sumário', 'Status JIRA', 'Contract ID', 'Assignee', 'Contract Approval Need',
                          'Contract Manager', 'Contract Manager Delegate']
     ws_providers.append(headers_providers)
     providers_row_index = 2
 
     for issue in issues:
-        if issue['issue_type'] == "Provider":
+        if issue['issue_type'] == "ISSUETYPE3":
             ws_providers.append([
                 issue['issue_key'], issue['issue_type'], issue['project_name'], issue['summary'], issue['status'],
                 issue['contract_id'], issue['assignee'], issue['approval_need'], issue['contract_manager'], issue['contract_delegate']
             ])
 
-            if issue['status'] in ['PROVIDERS']:
+            if issue['status'] in ['ISSUETAB5']:
                 current_sheet = ws_providers
                 row_index = providers_row_index
                 providers_row_index += 1
 
     # Cria a aba RFC
-    ws_rfc = wb.create_sheet(title="RFC")
+    ws_rfc = wb.create_sheet(title="ISSUETASB6")
     headers_rfc = ['ID', 'Projeto', 'Tipo', 'Status RFC', 'Sumário', 'Start', 'Start Time', 'End', 'End Time',
                   'Source', 'Target', 'Rollback', 'Change Type', 'Release Type', 'APM Name', 'Provider', 'Contract', 'Nota CAB', 'Aprovado Por',
                    'Issue', 'Issue Type', 'RFC Descrição', 'Aberto Por']
@@ -424,7 +423,7 @@ def save_to_excel(issues, filename='Extração JIRA - SmartFlow.xlsx'):
     rfc_row_index = 2
 
     for issue in issues:
-        if issue['issue_type'] == "RFC":
+        if issue['issue_type'] == "ISSUETYPE2":
             ws_rfc.append([
                 issue['issue_key'], issue['project_name'], issue['issue_type'], issue['status'], issue['summary'],
                 issue['rfc_target_start'], issue['rfc_target_start_time'], issue['rfc_target_end'],
@@ -440,7 +439,7 @@ def save_to_excel(issues, filename='Extração JIRA - SmartFlow.xlsx'):
                 issue['rfc_description'], issue['rfc_reporter_name']
             ])
 
-            if issue['status'] in ['RFC']:
+            if issue['status'] in ['ISSUETASB6']:
                 current_sheet = ws_rfc
                 row_index = rfc_row_index
                 rfc_row_index += 1
@@ -465,4 +464,4 @@ if __name__ == "__main__":
     fetch_issues(jql_query, start_at_index, max_results_per_query)
     processed_issues = process_issues(all_jira_issues)
     save_to_excel(processed_issues)
-    logging.info(f"Extraídos {len(all_jira_issues)} itens com sucesso.")
+    logging.info(f"Extracted {len(all_jira_issues)} issues successfully.")
