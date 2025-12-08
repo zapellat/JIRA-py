@@ -395,7 +395,7 @@ def save_to_excel(issues, filename='Issue_Extraction.xlsx'):
                 else:
                     cell.value = item
 
-    # Cria a aba Providers
+    # CREATE TAB 5 - USE IF THE NEW TAB HAVE DIFFERENT HEADER #
     ws_providers = wb.create_sheet(title="ISSUETAB5")
     headers_providers = ['ID', 'Projeto', 'Tipo', 'Sumário', 'Status JIRA', 'Contract ID', 'Assignee', 'Contract Approval Need',
                          'Contract Manager', 'Contract Manager Delegate']
@@ -414,7 +414,7 @@ def save_to_excel(issues, filename='Issue_Extraction.xlsx'):
                 row_index = providers_row_index
                 providers_row_index += 1
 
-    # Cria a aba RFC
+    # CREATE TAB 6 - USE IF THE NEW TAB HAVE DIFFERENT HEADER #
     ws_rfc = wb.create_sheet(title="ISSUETASB6")
     headers_rfc = ['ID', 'Projeto', 'Tipo', 'Status RFC', 'Sumário', 'Start', 'Start Time', 'End', 'End Time',
                   'Source', 'Target', 'Rollback', 'Change Type', 'Release Type', 'APM Name', 'Provider', 'Contract', 'Nota CAB', 'Aprovado Por',
@@ -455,11 +455,11 @@ def save_to_excel(issues, filename='Issue_Extraction.xlsx'):
                     cell.value = item
 
     wb.save(filename)
-    logging.info(f"Itens salvos no arquivo: '{filename}'")
+    logging.info(f"Issues exported to: '{filename}'")
     os.startfile(filename)
 
 
-# RODAR SCRIPT #
+# RUN SCRIPT #
 if __name__ == "__main__":
     fetch_issues(jql_query, start_at_index, max_results_per_query)
     processed_issues = process_issues(all_jira_issues)
