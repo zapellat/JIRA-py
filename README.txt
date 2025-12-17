@@ -8,7 +8,7 @@ This repository contains some scripts designed to:
   Generate Excel reports with organized tabs.
 
 Repository Contents:
-  Issue_Extraction.py;
+issue_extraction.py;
   Jira API authentication;
   Dynamic JQL construction;
   Paginated issue retrieval;
@@ -16,14 +16,14 @@ Repository Contents:
   Categorization of issues by type and status;
   Automatic generation of a structured Excel file.
 
-getFieldsJIRA.py:
+get_fields.py:
   A helper tool used to inspect all fields of a given issue;
   Lists every field (Field ID + Name + Value);
   Displays complete JSON values;
   Helps identify new or unknown customfields;
   Ideal for debugging or mapping complex Jira schemas.
 
-Update_Labels.py:
+update_labels.py:
   This script updates labels in bulk without overwriting existing ones;
   Executes a JQL for a list of issues;
   Reads current labels;
