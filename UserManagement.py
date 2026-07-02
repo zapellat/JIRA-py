@@ -3,9 +3,9 @@ from requests.auth import HTTPBasicAuth
 from typing import Dict, List, Optional
 
 session = requests.Session()
-session.auth = HTTPBasicAuth("BR0380284548", "TF$ranco2025")
+session.auth = HTTPBasicAuth("XXXXXXXXX", "XXXXXXXX")
 
-BASE_URL = "https://jira.springlab.enel.com"
+BASE_URL = "https://jira.XXXXXXX.XXXXXX.com"
 
 
 class JiraRoles:
@@ -193,16 +193,16 @@ class JiraRoles:
 
 
 KEEP_GROUPS = [
-    "GG-springlab-jira-admins",
-    "ictgovernanceandcompliancebrazil",
-    "jira-administrators",
-    "ato"
+    "XXXXX",
+    "XXXXXXXX",
+    "XXXXXXXXXX",
+    "XXXXXX"
 ]
 
 jira_roles = JiraRoles(session, BASE_URL)
 
 result = jira_roles.clean_project(
-    "INPANBRCE",
+    "MYPROJECT",
     KEEP_GROUPS
 )
 
