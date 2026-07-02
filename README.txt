@@ -31,6 +31,12 @@ update_labels.py:
   Prevents duplicates;
   Logs updates.
 
+usermanagement.py:
+  This script can be used to manage users roles and groups inside Jira Project using Rest API;
+  Add/Remove users;
+  Add/Remove groups;
+  Full clean Jira project users and groups with the options to keep specifics groups (yours);
+
 Install dependencies:
   atlassian-python-api;
   openpyxl;
