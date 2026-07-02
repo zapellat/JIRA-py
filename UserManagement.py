@@ -3,7 +3,7 @@ from requests.auth import HTTPBasicAuth
 from typing import Dict, List, Optional
 
 session = requests.Session()
-session.auth = HTTPBasicAuth("XXXXXXXXX", "XXXXXXXX")
+session.auth = HTTPBasicAuth("XXXXXXXXX", "XXXXXXXXX")
 
 BASE_URL = "https://jira.XXXXXXX.XXXXXX.com"
 
