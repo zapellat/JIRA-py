@@ -3,10 +3,12 @@ from requests.auth import HTTPBasicAuth
 from typing import Dict, List, Optional
 
 session = requests.Session()
-session.auth = HTTPBasicAuth("XXXXXXXXX", "XXXXXXXXX")
+session.auth = HTTPBasicAuth("XXXXXXXXX", "XXXXXXXXXXXX")
 
-BASE_URL = "https://jira.XXXXXXX.XXXXXX.com"
+BASE_URL = "https://jira.XXXXXXXXX.XXXXXXXXX.com"
 
+# ATTENTION: the current code is using the def clean_project that remove ALL roles and groups from a Jira Project except the groups in the KEEP GROUPS List #
+# If you want to use any other def just change the code at the end #
 
 class JiraRoles:
 
@@ -171,32 +173,46 @@ class JiraRoles:
             keep_groups: List[str]
     ):
         summary = {}
+        print(f"\n#### Cleaning Project: {project} ####")
         role_names = self.get_role_names(project)
         for role_name in role_names:
-            # USERS: always remove everything
+            print(f"\nRole: {role_name}")
+            # ---------------- USERS ----------------
             users = self.get_users(project, role_name)
             if users:
+                print(f"  Removing {len(users)} user(s)...")
+                for user in users:
+                    print(f"    - {user}")
                 self.remove_users(project, role_name, users)
-            # GROUPS: selective removal
+            else:
+                print("  No users to remove.")
+            # ---------------- GROUPS ----------------
             groups = self.get_groups(project, role_name)
             groups_to_remove = [
                 g for g in groups
                 if g not in keep_groups
             ]
             if groups_to_remove:
+                print(f"  Removing {len(groups_to_remove)} group(s)...")
+                for group in groups_to_remove:
+                    print(f"    - {group}")
                 self.remove_groups(project, role_name, groups_to_remove)
+            else:
+                print("  No groups to remove.")
             summary[role_name] = {
-                "users_removed": len(users),
-                "groups_removed": len(groups_to_remove)
+                "users": users,
+                "groups": groups_to_remove
             }
+        print("\n#### Project Access Cleaned  ####")
+
         return summary
 
 
 KEEP_GROUPS = [
-    "XXXXX",
     "XXXXXXXX",
-    "XXXXXXXXXX",
-    "XXXXXX"
+    "YYYYYYYY",
+    "ZZZZZZZZ",
+    "TTTTTTTT"
 ]
 
 jira_roles = JiraRoles(session, BASE_URL)
@@ -206,4 +222,17 @@ result = jira_roles.clean_project(
     KEEP_GROUPS
 )
 
-print(result)
+print("\n#### SUMMARY ####")
+
+total_users = set()
+total_groups = set()
+
+for role, data in result.items():
+
+    total_users.update(data["users"])
+    total_groups.update(data["groups"])
+
+print("#########################################################################")
+print(f"Unique users removed : {len(total_users)}")
+print(f"Unique groups removed: {len(total_groups)}")
+print("#########################################################################")
