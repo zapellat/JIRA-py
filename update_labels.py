@@ -23,27 +23,19 @@ jira_api = Jira(
     username=JIRA_USERNAME,
     token=JIRA_TOKEN
 )
-logging.info("JIRA API Configurada e Autenticada.")
+logging.info("JIRA API Authenticated.")
 
 # LABELS - THIS IS A LIST #
-new_label_here = ['2026_CAB', '2026_FEV_S1']
-READY_TO_INSTALL_TRANSITION_ID = 31
+new_label_here = ['XXXXXX', 'XXXXXXX']
+READY_TO_INSTALL_TRANSITION_ID = 121
 
 # JIRA ISSUES KEYS #
-issue_keys = [
-    "ICTBRSFBR-205", "ICTBRSFBR-211", "ICTBRSFBR-208", "ICTBRSFBR-217", "ICTBRSFBR-215", "ICTBRSFBR-221",
-    "ICTBRSFBR-185", "CDBRDCDMCEB-12", "PIXCM2405TA-470", "ICTBRSAPCCS-565", "ICTBRSAPCCS-650", "ICTBRSAPISU-678",
-    "ICTBRSAPISU-677", "PQ2501CD-943", "PQ2501CD-941",
-    "ICTBRSAPCCS-644", "ICTBRSAPCCS-641", "ICTBRSAPCCS-638", "PIXCM2405CD-816", "PIXCM2405CD-815", "CDBRDCDMSITE-93",
-    "CDBRDCDMSITE-99", "ICTBRSAPISU-685", "ICTBRSAPISU-686", "ICTBRSAPISU-675", "ICTBRSAPISU-674", "ICTBRSAPISU-676",
-    "MKTBRPL24PIX-437", "MKTBRPL24PIX-438", "ICTBRDASPCE-45", "ICTBRDASPRJ-49", "ICTBRDASPRJ-50", "ICTBRDASPCE-46",
-    "ICTBRCRM-55", "CC2467-425", "CC2467-424", "CDBRDCDMCCC-26", "ICTBRDELGEOSP-17", "ICTBRSAPISU-667",
-    "ICTBRSAPISU-666", "ICTBRSAPCCS-628"
-]
+issue_keys = ["XXXX-643", "XXXX-641", "XXXX-635", "XXXX-634", "XXX-632",
+              ]
 
 # SERACHING ISSUES
 jql_query = 'key in ({})'.format(','.join(f'"{k}"' for k in issue_keys))
-logging.info(f"Procurando pela Query: {jql_query}")
+logging.info(f"Searching Query: {jql_query}")
 
 
 # JIRA TRANSITION
@@ -53,7 +45,7 @@ def transition_issue_by_id(jira, issue_key, transition_id):
         available_ids = {int(t['id']) for t in transitions}
         if int(transition_id) not in available_ids:
             logging.info(
-                f"Issue {issue_key} já está em 'Ready To Install' ou transição ID={transition_id} indisponível."
+                f"Issue {issue_key} already in 'Ready To Install' or transition ID={transition_id} not available."
             )
             return False
 
@@ -94,11 +86,11 @@ while True:
     if len(issues_page) < max_results:
         break
 
-logging.info(f"Total de Issues carregados: {len(all_issues)}")
+logging.info(f"Total Issues loaded: {len(all_issues)}")
 
 # UPDATING LABELS
 if not all_issues:
-    logging.info("Nenhum Issue encontrado.")
+    logging.info("No Issues founded.")
 else:
     for issue in all_issues:
         issue_key = issue['key']
@@ -106,32 +98,37 @@ else:
         try:
             existing_labels = issue['fields'].get('labels', [])
             existing_labels = [str(lbl) for lbl in existing_labels]
-
-            labels_to_add = [lbl for lbl in new_label_here if lbl not in existing_labels]
-
+            labels_to_add = [
+                lbl for lbl in new_label_here
+                if lbl not in existing_labels
+            ]
             if labels_to_add:
                 updated_labels = existing_labels + labels_to_add
-                jira_api.update_issue_field(issue_key, fields={'labels': updated_labels})
-                logging.info(f"Labels adicionados ao Issue {issue_key}: {labels_to_add}")
+                jira_api.update_issue_field(
+                    issue_key,
+                    fields={"labels": updated_labels}
+                )
+                logging.info(f"Labels added to the Issue {issue_key}: {labels_to_add}")
             else:
-                logging.info(f"Issue {issue_key} já contém todos os labels necessários.")
-
-            # 🔁 STATUS TRANSITION (always attempted)
+                logging.info(f"Issue {issue_key} already have the labels.")
+        except HTTPError as err:
+            logging.error(
+                f"Issue {issue_key} | HTTP Error Updating Labels: "
+                f"{err.response.status_code} - {err.response.text}"
+            )
+        except Exception as e:
+            logging.error(
+                f"Issue {issue_key} | Unexpected Error Updating Labels: {e}"
+            )
+        try:
             transition_issue_by_id(
                 jira_api,
                 issue_key,
                 READY_TO_INSTALL_TRANSITION_ID
             )
-
-        except HTTPError as err:
-            logging.error(
-                f"Issue {issue_key} | Erro HTTP ao atualizar labels: "
-                f"{err.response.status_code} - {err.response.text}"
-            )
-
         except Exception as e:
             logging.error(
-                f"Issue {issue_key} | Erro inesperado: {str(e)}"
+                f"Issue {issue_key} | Transition failed: {e}"
             )
 
-logging.info(f"Foram processados {len(all_issues)} itens.")
+logging.info(f"Issues Updated: {len(all_issues)}.")
