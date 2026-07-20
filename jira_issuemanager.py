@@ -23,29 +23,28 @@ jira_api = Jira(
     username=JIRA_USERNAME,
     token=JIRA_TOKEN
 )
-logging.info("JIRA API Authenticated.")
+logging.info("JIRA API Configurada e Autenticada.")
 
 # LABELS - THIS IS A LIST #
-new_label_here = ['XXXXXX', 'XXXXXXX']
-READY_TO_INSTALL_TRANSITION_ID = 121
+new_label_here = []
+which_status_id = 171
 
 # JIRA ISSUES KEYS #
-issue_keys = ["XXXX-643", "XXXX-641", "XXXX-635", "XXXX-634", "XXX-632",
-              ]
+issue_keys = ["XXXXXX-111", "XXXXXX-123"]
 
 # SERACHING ISSUES
 jql_query = 'key in ({})'.format(','.join(f'"{k}"' for k in issue_keys))
-logging.info(f"Searching Query: {jql_query}")
+logging.info(f"Procurando pela Query: {jql_query}")
 
 
 # JIRA TRANSITION
-def transition_issue_by_id(jira, issue_key, transition_id):
+def transition_issue_by_id(jira, issue_key, transition_id, fields=None):
     try:
         transitions = jira.get_issue_transitions(issue_key)
         available_ids = {int(t['id']) for t in transitions}
         if int(transition_id) not in available_ids:
             logging.info(
-                f"Issue {issue_key} already in 'Ready To Install' or transition ID={transition_id} not available."
+                f"Issue {issue_key} already on status or the transition code ID={transition_id} not available."
             )
             return False
 
@@ -56,15 +55,24 @@ def transition_issue_by_id(jira, issue_key, transition_id):
                 "id": str(transition_id)
             }
         }
+        if fields:
+            payload["fields"] = fields
+
         response = jira._session.post(url, json=payload)
         response.raise_for_status()
 
         logging.info(f"Issue {issue_key} transitioned using ID={transition_id}")
         return True
+
     except Exception as e:
         logging.error(
-            f"Transition failed for {issue_key} | ID={transition_id} | {e}"
+            f"Transition failed for {issue_key} | ID={transition_id}"
         )
+        if hasattr(e, "response") and e.response is not None:
+            logging.error(f"Status: {e.response.status_code}")
+            logging.error(f"Body  : {e.response.text}")
+        else:
+            logging.error(str(e))
         return False
 
 
@@ -86,11 +94,11 @@ while True:
     if len(issues_page) < max_results:
         break
 
-logging.info(f"Total Issues loaded: {len(all_issues)}")
+logging.info(f"Total de Issues carregados: {len(all_issues)}")
 
 # UPDATING LABELS
 if not all_issues:
-    logging.info("No Issues founded.")
+    logging.info("Nenhum Issue encontrado.")
 else:
     for issue in all_issues:
         issue_key = issue['key']
@@ -108,27 +116,71 @@ else:
                     issue_key,
                     fields={"labels": updated_labels}
                 )
-                logging.info(f"Labels added to the Issue {issue_key}: {labels_to_add}")
+                logging.info(f"Labels add to the issue {issue_key}: {labels_to_add}")
             else:
-                logging.info(f"Issue {issue_key} already have the labels.")
+                logging.info(f"Issue {issue_key} already has the requested labels.")
         except HTTPError as err:
             logging.error(
-                f"Issue {issue_key} | HTTP Error Updating Labels: "
+                f"Issue {issue_key} | HTTP  Error updating labels: "
                 f"{err.response.status_code} - {err.response.text}"
             )
         except Exception as e:
             logging.error(
-                f"Issue {issue_key} | Unexpected Error Updating Labels: {e}"
+                f"Issue {issue_key} | Unexpected Error updating labels: {e}"
             )
         try:
             transition_issue_by_id(
                 jira_api,
                 issue_key,
-                READY_TO_INSTALL_TRANSITION_ID
+                which_status_id,
+                fields={
+                    "customfield_33201": "Expired."
+                    #                    "resolution": {
+                    #                        "id": "10901"
+                    #                    }
+                }
             )
         except Exception as e:
             logging.error(
                 f"Issue {issue_key} | Transition failed: {e}"
             )
 
-logging.info(f"Issues Updated: {len(all_issues)}.")
+logging.info(f"{len(all_issues)} issues processed.")
+
+# transition code for "motivation" field
+# transition_issue_by_id(
+#   jira_api,
+#   issue_key,
+#   which_status_id,
+#   fields={
+#       "customfield_33201": "Expired."
+#   }
+# )
+#
+
+# transition code for "resolution" field
+# transition_issue_by_id(
+#   jira_api,
+#   issue_key,
+#   which_status_id,
+#   fields={
+#       "resolution": {
+#          "id": "10901"
+#       }
+#    }
+# )
+#
+
+# transition code for both "resolution" field
+# transition_issue_by_id(
+#   jira_api,
+#   issue_key,
+#   which_status_id,
+#   fields={
+#        "customfield_33201": "Expired.",
+#        "resolution": {
+#            "id": "10901"
+#       }
+#   }
+# )
+#
