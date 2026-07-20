@@ -1,21 +1,24 @@
-import requests
-from requests.auth import HTTPBasicAuth
+from jira_auth import JiraClient
 from typing import Dict, List, Optional
+from jira_auth import session, BASE_URL
+from requests.exceptions import HTTPError
 
-session = requests.Session()
-session.auth = HTTPBasicAuth("XXXXXXXXX", "XXXXXXXXXXXX")
+#groups to be keep in the group for safety, and adding a group also for safety of not locking the user out
+KEEP_GROUPS = [
+    "XYZGROUP1",
+    "XYZGROUP2",
+    "XYZGROUP2",
+    "ADM"
+]
 
-BASE_URL = "https://jira.XXXXXXXXX.XXXXXXXXX.com"
+GOVERNANCE_GROUP = "ITGOV"
 
-# ATTENTION: the current code is using the def clean_project that remove ALL roles and groups from a Jira Project except the groups in the KEEP GROUPS List #
-# If you want to use any other def just change the code at the end #
 
-class JiraRoles:
+class JiraRoles(JiraClient):
 
-    def __init__(self, session: requests.Session, base_url: str):
-        self.session = session
-        self.base_url = base_url.rstrip("/")
-        self._role_cache: Dict[str, Dict[str, dict]] = {}
+    def __init__(self, session, base_url):
+        super().__init__(session, base_url)
+        self._role_cache = {}
 
     # ------------------------------------------------------------------
     # CACHE
@@ -34,10 +37,22 @@ class JiraRoles:
     def _load_project_roles(self, project: str):
         if project in self._role_cache:
             return
-        response = self.session.get(
-            f"{self.base_url}/rest/api/2/project/{project}/role"
-        )
-        response.raise_for_status()
+        try:
+            response = self.request(
+                "GET",
+                f"{self.base_url}/rest/api/2/project/{project}/role"
+            )
+        except HTTPError as e:
+            response = e.response
+            if response is not None and response.status_code in (401, 403):
+                print(
+                    f"Skipping project '{project}': "
+                    f"No permission to access Jira roles."
+                )
+                self._role_cache[project] = {}
+                return
+
+            raise
         roles = {}
         for role_name, role_url in response.json().items():
             roles[role_name] = {
@@ -48,20 +63,30 @@ class JiraRoles:
 
     def _get_role(self, project: str, role_name: str):
         self._load_project_roles(project)
-        if role_name not in self._role_cache[project]:
+        roles = self._role_cache.get(project, {})
+        if not roles:
+            print(
+                f"Cannot access roles for project '{project}'."
+            )
+            return None
+        if role_name not in roles:
             raise Exception(
                 f"Role '{role_name}' not found in project '{project}'"
             )
-        return self._role_cache[project][role_name]
+        return roles[role_name]
 
     def get_role_names(self, project: str) -> List[str]:
         self._load_project_roles(project)
-        return list(self._role_cache[project].keys())
+        roles = self._role_cache.get(project)
+        if roles is None:
+            return []
+        return list(roles.keys())
 
     def _get_role_data(self, project: str, role_name: str):
         role = self._get_role(project, role_name)
-        response = self.session.get(role["url"])
-        response.raise_for_status()
+        if role is None:
+            return None
+        response = self.request("GET", role["url"])
         return response.json()
 
     def _remove_actors(
@@ -74,13 +99,8 @@ class JiraRoles:
         if not values:
             return
         role = self._get_role(project, role_name)
-
         for value in values:
-            response = self.session.delete(
-                role["url"],
-                params={parameter: value}
-            )
-            response.raise_for_status()
+            self.request("DELETE", role["url"], params={parameter: value})
 
     # ------------------------------------------------------------------
     # USERS MANAGEMENT
@@ -98,11 +118,7 @@ class JiraRoles:
         if not users:
             return
         role = self._get_role(project, role_name)
-        response = self.session.post(
-            role["url"],
-            json={"user": users}
-        )
-        response.raise_for_status()
+        response = self.request("POST", role["url"], json={"user": users})
         return response.json()
 
     def remove_users(self, project: str, role_name: str, users: List[str]):
@@ -134,12 +150,16 @@ class JiraRoles:
     def add_groups(self, project: str, role_name: str, groups: List[str]):
         if not groups:
             return
+        current_groups = self.get_groups(project, role_name)
+        groups_to_add = [
+            group
+            for group in groups
+            if group not in current_groups
+        ]
+        if not groups_to_add:
+            return
         role = self._get_role(project, role_name)
-        response = self.session.post(
-            role["url"],
-            json={"group": groups}
-        )
-        response.raise_for_status()
+        response = self.request("POST", role["url"], json={"group": groups_to_add})
         return response.json()
 
     def remove_groups(self, project: str, role_name: str, groups: List[str]):
@@ -152,10 +172,10 @@ class JiraRoles:
         )
 
     def clear_groups(
-        self,
-        project: str,
-        role_name: str,
-        groups: Optional[List[str]] = None
+            self,
+            project: str,
+            role_name: str,
+            groups: Optional[List[str]] = None
     ):
         if groups is None:
             groups = self.get_groups(project, role_name)
@@ -167,25 +187,34 @@ class JiraRoles:
     # REMOVE ALL
     # ------------------------------------------------------------------
 
-    def clean_project(
-            self,
-            project: str,
-            keep_groups: List[str]
-    ):
+    def clean_project(self, project: str, keep_groups: List[str]):
         summary = {}
-        print(f"\n#### Cleaning Project: {project} ####")
+        print(f"\nCleaning roles for project: {project}")
         role_names = self.get_role_names(project)
+        if not role_names:
+            print(
+                f"Skipping role cleanup for '{project}': No Jira role access."
+            )
+            return summary
+        print(f"Adding ICT Governance Brasil to the project: {project}")
+        for role_name in [
+            "Administrators",
+            "Estimate Manager",
+            "Initiative Leader Delegate",
+            "Technical Leader",
+        ]:
+            self.add_groups(
+                project=project,
+                role_name=role_name,
+                groups=[GOVERNANCE_GROUP]
+            )
+        print(f"Removing users and groups from project: {project}")
         for role_name in role_names:
-            print(f"\nRole: {role_name}")
             # ---------------- USERS ----------------
             users = self.get_users(project, role_name)
             if users:
-                print(f"  Removing {len(users)} user(s)...")
-                for user in users:
-                    print(f"    - {user}")
                 self.remove_users(project, role_name, users)
-            else:
-                print("  No users to remove.")
+
             # ---------------- GROUPS ----------------
             groups = self.get_groups(project, role_name)
             groups_to_remove = [
@@ -193,46 +222,31 @@ class JiraRoles:
                 if g not in keep_groups
             ]
             if groups_to_remove:
-                print(f"  Removing {len(groups_to_remove)} group(s)...")
-                for group in groups_to_remove:
-                    print(f"    - {group}")
                 self.remove_groups(project, role_name, groups_to_remove)
-            else:
-                print("  No groups to remove.")
             summary[role_name] = {
                 "users": users,
                 "groups": groups_to_remove
             }
-        print("\n#### Project Access Cleaned  ####")
-
+        print(f"Finished cleaning roles for project: {project}")
         return summary
 
 
-KEEP_GROUPS = [
-    "XXXXXXXX",
-    "YYYYYYYY",
-    "ZZZZZZZZ",
-    "TTTTTTTT"
-]
+def main():
+    jira_roles = JiraRoles(session, BASE_URL)
+    result = jira_roles.clean_project(
+        "XXXXXGROUPCODE",
+        KEEP_GROUPS
+    )
+    print("\n################################ SUMMARY ################################")
+    total_users = set()
+    total_groups = set()
+    for _, data in result.items():
+        total_users.update(data["users"])
+        total_groups.update(data["groups"])
+    print(f"Unique users removed : {len(total_users)}")
+    print(f"Unique groups removed: {len(total_groups)}")
+    print("#########################################################################")
 
-jira_roles = JiraRoles(session, BASE_URL)
 
-result = jira_roles.clean_project(
-    "MYPROJECT",
-    KEEP_GROUPS
-)
-
-print("\n#### SUMMARY ####")
-
-total_users = set()
-total_groups = set()
-
-for role, data in result.items():
-
-    total_users.update(data["users"])
-    total_groups.update(data["groups"])
-
-print("#########################################################################")
-print(f"Unique users removed : {len(total_users)}")
-print(f"Unique groups removed: {len(total_groups)}")
-print("#########################################################################")
+if __name__ == "__main__":
+    main()
