@@ -1,15 +1,16 @@
-Jira-Py - Python Scripts for Jira Issue Extraction and Label Automation.
+Jira-Py - Python Scripts for Jira Issue Extraction, Issue Transitions and Closing Projects.
 I do work in IT but I'm NOT a full Developer and I made this only to make my life easier while managing Jira at work.
 
 This repository contains some scripts designed to:
   Perform large-scale Jira issue extraction;
   Inspect field metadata (including customfields);
   Automate label updates across multiple issues;
+  Automate closing projects;
+  Automate issues transitions;
   Generate Excel reports with organized tabs.
 
 Repository Contents:
 issue_extraction.py;
-  Jira API authentication;
   Dynamic JQL construction;
   Paginated issue retrieval;
   Mapping and normalization of dozens of fields;
@@ -23,15 +24,17 @@ get_fields.py:
   Helps identify new or unknown customfields;
   Ideal for debugging or mapping complex Jira schemas.
 
-update_labels.py:
-  This script updates labels in bulk without overwriting existing ones;
+jira_issuemanager.py:
+  Update issues in bulk status to the status of choice;
+  Update labels in bulk without overwriting existing ones;
   Executes a JQL for a list of issues;
   Reads current labels;
   Appends only missing labels;
   Prevents duplicates;
+  Change the issues status even if the labels aren't available;
   Logs updates.
 
-usermanagement.py:
+jira_roles.py:
   This script can be used to manage users roles and groups inside Jira Project using Rest API;
   Add/Remove users;
   Add/Remove groups;
@@ -41,7 +44,7 @@ Install dependencies:
   atlassian-python-api;
   openpyxl;
   python-dotenv;
-  requests.
+  requests;
 
 .env configuration:
   Create a .env file in the project root containing your Jira Credentials (do not upload env files online):
@@ -56,3 +59,5 @@ The script also groups Jira statuses into more general categories to improve rep
 Please review your own Jira status values and update the grouping in the script as needed.
 
 The script extract lot of custom fields from JIRA, you'll need to change the script based on your Jira custom fields.
+
+For the closing code, most of the fields in the code are customized, check you Projec Fields and change the code properly.
