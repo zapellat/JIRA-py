@@ -1,28 +1,28 @@
+from jira_profields import ProjectField, Profields
+from jira_auth import session, BASE_URL
+from jira_roles import JiraRoles
 from dotenv import load_dotenv
 from typing import Dict, List
 from datetime import date
 from typing import Any
-from jira_auth import session, BASE_URL
-from jira_profields import ProjectField, Profields
-from jira_roles import JiraRoles
 import time
 
 load_dotenv()
 
 KEEP_GROUPS = [
-    "GG-springlab-jira-admins",
-    "ictgovernanceandcompliancebrazil",
+    "XXXXXXXXXXXX",
+    "XXXXXXXXXXXXXXXXX",
     "jira-administrators",
-    "ato"
+    "XXX"
 ]
 
 FIELDS = {
     ProjectField.PROJECT_STATUS: "Closed",
-    ProjectField.GDS_LINE: "ICT Brazil",
+    ProjectField.GDS_LINE: "XXXXXXX",
     ProjectField.APM_CODE_DEV: [],
     ProjectField.APM_CODE_RELEASE: [],
     ProjectField.APM_CODE_CORRECTIVE: [],
-    ProjectField.OWNER_ORG_UNIT: "Global Digital Solutions (30024927)",
+    ProjectField.OWNER_ORG_UNIT: "XXXXXXXXXXXXXXXXXXX",
     ProjectField.DIGITAL_HUB: "Y",
     ProjectField.ANNOUNCER: "",
     ProjectField.COMPLAINCE_BADGE: "",
